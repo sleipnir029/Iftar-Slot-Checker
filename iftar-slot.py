@@ -22,10 +22,13 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-# Global dictionary for cooldown state.
-# Keys are tuples: (ticket_type, target_date_str)
+# Global dictionaries for cooldown and state tracking.
+# last_notifications: stores last notification timestamp for a key (ticket_type, target_date)
 last_notifications = {}
-# Cooldown period in seconds (30 minutes here)
+# last_states: stores the last known availability state for a key (ticket_type, target_date)
+last_states = {}
+
+# Cooldown period in seconds (10 minutes here)
 COOLDOWN_SECONDS = 600
 
 def send_telegram_message(message):
@@ -73,22 +76,21 @@ def check_today_slots():
         logging.info("No cell found for date %s.", target_str)
         return
     
-    # Check the event status in the day cell.
     status_el = day_cell.select_one(".event-status")
     status_text = status_el.get_text(strip=True).lower() if status_el else ""
     logging.info("Status text in day cell: '%s'", status_text)
     
-    # (Optional) If the cell-level status indicates unavailability, you may choose to return.
+    # (Optional) You might decide here to immediately notify if cell status shows unavailability.
     if any(keyword in status_text for keyword in ["ausgebucht", "verkauf beendet", "fully booked"]):
         logging.info("❌ Tickets not available (fully booked/sale ended) for %s.", target_str)
         # send_telegram_message(f"❌ No available tickets found for {target_str}.")
-        # Even if cell-level shows unavailable, we continue if you want to check detail page.
-        # return
-
-    # Find the actual event link in the <ul class="events"> block.
+        # We don't return here so that if the detail page state changes (e.g. toggles back to available),
+        # a state change will be detected.
+    
+    # Find the actual event link within <ul class="events">
     link_tag = day_cell.select_one("ul.events a.event")
     if not link_tag:
-        logging.info("No event link found in ul.events. Trying fallback...")
+        logging.info("No event link found in ul.events. Trying fallback day label link...")
         link_tag = day_cell.select_one("a.day-label.event")
     
     if not link_tag or not link_tag.get("href"):
@@ -111,7 +113,7 @@ def check_today_slots():
     detail_soup = BeautifulSoup(detail_resp.text, "html.parser")
     messages = []
     
-    # Check each ticket product on the detail page.
+    # Iterate over ticket products on the detail page.
     articles = detail_soup.find_all("article", class_="product-row")
     if not articles:
         logging.info("No ticket articles found on detail page.")
@@ -131,7 +133,8 @@ def check_today_slots():
                 emoji = "❌"
         logging.info("Ticket '%s': sold out? %s %s", product_title, is_sold_out, emoji)
         
-        # Determine ticket type and key for cooldown.
+        key = None
+        ticket_emoji = ""
         if "brüderticket" in product_title:
             key = ("bruder", target_str)
             ticket_emoji = "🧔"
@@ -141,20 +144,31 @@ def check_today_slots():
         else:
             continue
         
-        # Check if a notification for this ticket type on this date was recently sent.
-        last_sent = last_notifications.get(key)
-        if last_sent and (datetime.now() - last_sent).total_seconds() < COOLDOWN_SECONDS:
-            logging.info("Cooldown active for %s ticket on %s. Skipping notification.", key[0], target_str)
-            continue
-        
+        # If the ticket is not sold out:
         if not is_sold_out:
-            messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket available for {target_str}!\n✅ Register here: {detail_url}"))
-    
+            # Check previous state for this ticket.
+            previous_state = last_states.get(key, False)
+            # If previous state was unavailable or not set, state change detected.
+            if not previous_state:
+                messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket available for {target_str}!\n✅ Register here: {detail_url}"))
+                last_notifications[key] = datetime.now()
+                last_states[key] = True
+            else:
+                # Ticket was already available.
+                elapsed = (datetime.now() - last_notifications[key]).total_seconds()
+                if elapsed >= COOLDOWN_SECONDS:
+                    messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket still available for {target_str}!\n✅ Register here: {detail_url}"))
+                    last_notifications[key] = datetime.now()
+                else:
+                    logging.info("Cooldown active for %s ticket on %s (elapsed %.0f seconds).", key[0], target_str, elapsed)
+        else:
+            # If ticket is sold out, update state.
+            last_states[key] = False
+
     if messages:
         for key, msg in messages:
             send_telegram_message(msg)
             logging.info("Notification sent: %s", msg)
-            last_notifications[key] = datetime.now()  # update the cooldown timestamp
     else:
         logging.info("No available tickets found for %s.", target_str)
         # send_telegram_message(f"❌ No available tickets found for {target_str}.")
@@ -164,7 +178,7 @@ def check_today_slots():
 def main():
     while True:
         check_today_slots()
-        time.sleep(30)  # Check every 30 seconds (adjust as needed)
+        time.sleep(30)  # Check every 30 seconds; adjust as needed.
 
 if __name__ == "__main__":
     main()
