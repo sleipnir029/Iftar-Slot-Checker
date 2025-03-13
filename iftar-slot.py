@@ -26,7 +26,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 # Keys are tuples: (ticket_type, target_date_str)
 last_notifications = {}
 # Cooldown period in seconds (30 minutes here)
-COOLDOWN_SECONDS = 300
+COOLDOWN_SECONDS = 600
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -123,11 +123,13 @@ def check_today_slots():
         product_title = header.get_text(strip=True).lower()
         availability_div = article.find("div", class_="availability-box")
         is_sold_out = False
+        emoji = "✅"
         if availability_div:
             availability_text = availability_div.get_text(strip=True).lower()
             if "ausgebucht" in availability_text:
                 is_sold_out = True
-        logging.info("Ticket '%s': sold out? %s ❌", product_title, is_sold_out)
+                emoji = "❌"
+        logging.info("Ticket '%s': sold out? %s %s", product_title, is_sold_out, emoji)
         
         # Determine ticket type and key for cooldown.
         if "brüderticket" in product_title:
