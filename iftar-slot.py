@@ -70,7 +70,7 @@ def check_today_slots():
     
     soup = BeautifulSoup(resp.text, "html.parser")
     # Find the calendar cell for today's date
-    day_cell = soup.select_one(f'td.day[data-date="{today_str}"]')
+    day_cell = soup.select_one(f'td.day[data-date="{target_str}"]')
     # logging.info("Day cell found: %s", day_cell)
     if not day_cell:
         logging.info("No cell found for today's date.")
@@ -84,7 +84,7 @@ def check_today_slots():
     # If the day is marked as unavailable, immediately send a notification and return.
     if any(keyword in status_text for keyword in ["ausgebucht", "verkauf beendet", "fully booked"]):
         logging.info("❌ Tickets not available (fully booked/sale ended).")
-        # send_telegram_message(f"❌ No available tickets found for {today_str}.")
+        # send_telegram_message(f"❌ No available tickets found for {target_str}.")
         # return
     else:
         logging.info("✅ Tickets available for today!")
@@ -134,9 +134,9 @@ def check_today_slots():
                 is_sold_out = True
         logging.info("Ticket '%s': sold out? %s ❌", product_title, is_sold_out)
         if "brüderticket" in product_title and not is_sold_out:
-            messages.append(f"🧔 Brother ticket available for {today_str}!\nRegister here: {detail_url}")
+            messages.append(f"🧔 Brother ticket available for {target_str}!\nRegister here: {detail_url}")
         elif "schwesternticket" in product_title and not is_sold_out:
-            messages.append(f"🧕 Sister ticket available for {today_str}!\nRegister here: {detail_url}")
+            messages.append(f"🧕 Sister ticket available for {target_str}!\nRegister here: {detail_url}")
     
     if messages:
         for msg in messages:
@@ -144,7 +144,7 @@ def check_today_slots():
             logging.info("Notification sent: %s", msg)
     else:
         logging.info("No available tickets found for today.")
-        # send_telegram_message(f"❌ No available tickets found for {today_str}.")
+        # send_telegram_message(f"❌ No available tickets found for {target_str}.")
     
     logging.info("Done checking today's slots.")
 
