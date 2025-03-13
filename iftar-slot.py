@@ -2,7 +2,7 @@ import os
 import time
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urljoin
 from dotenv import load_dotenv
 import logging
@@ -40,9 +40,26 @@ def send_telegram_message(message):
 def check_today_slots():
     logging.info("Checking today's slots...")
     base_url = "https://dailyiftar.imsuaachen.de/"
-    # Calendar uses date format "DD.MM.YYYY"
-    today_str = datetime.now().strftime("%d.%m.%Y")
-    logging.info("Looking for date cell with data-date='%s'", today_str)
+    
+    # Determine target date:
+    now = datetime.now()
+    # If current time is 19:45 or later, use next day; otherwise, use today.
+    cutoff_time = datetime.strptime("19:45", "%H:%M").time()
+    if now.time() >= cutoff_time:
+        target_date = now + timedelta(days=1)
+        logging.info("Current time is after 19:45; using next day's registration.")
+    else:
+        target_date = now
+        logging.info("Current time is before 19:45; using today's registration.")
+
+    # Format target date as DD.MM.YYYY
+    target_str = target_date.strftime("%d.%m.%Y")
+    logging.info("Looking for date cell with data-date='%s'", target_str)
+    
+    
+    # # Calendar uses date format "DD.MM.YYYY"
+    # today_str = datetime.now().strftime("%d.%m.%Y")
+    # logging.info("Looking for date cell with data-date='%s'", today_str)
     
     try:
         resp = requests.get(base_url)
