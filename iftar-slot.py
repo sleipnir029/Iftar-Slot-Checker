@@ -134,9 +134,9 @@ def check_today_slots():
                 is_sold_out = True
         logging.info("Ticket '%s': sold out? %s ❌", product_title, is_sold_out)
         if "brüderticket" in product_title and not is_sold_out:
-            messages.append(f"🧔 Brother ticket available for {target_str}!\nRegister here: {detail_url}")
+            messages.append(f"🧔 Brother ticket available for {target_str}!\n✅ Register here: {detail_url}")
         elif "schwesternticket" in product_title and not is_sold_out:
-            messages.append(f"🧕 Sister ticket available for {target_str}!\nRegister here: {detail_url}")
+            messages.append(f"🧕 Sister ticket available for {target_str}!\n✅ Register here: {detail_url}")
     
     if messages:
         for msg in messages:
