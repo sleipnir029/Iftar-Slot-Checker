@@ -116,7 +116,7 @@ def check_today_slots():
     # Iterate over ticket products on the detail page.
     articles = detail_soup.find_all("article", class_="product-row")
     if not articles:
-        logging.info("No ticket articles found on detail page.")
+        logging.info("No ticket articles are found on detail page.")
     
     for article in articles:
         header = article.find("h4")
@@ -150,14 +150,14 @@ def check_today_slots():
             previous_state = last_states.get(key, False)
             # If previous state was unavailable or not set, state change detected.
             if not previous_state:
-                messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket available for {target_str}!\n✅ Register here: {detail_url}"))
+                messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket is available for {target_str}!\n✅ Register here: {detail_url}"))
                 last_notifications[key] = datetime.now()
                 last_states[key] = True
             else:
                 # Ticket was already available.
                 elapsed = (datetime.now() - last_notifications[key]).total_seconds()
                 if elapsed >= COOLDOWN_SECONDS:
-                    messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket still available for {target_str}!\n✅ Register here: {detail_url}"))
+                    messages.append((key, f"{ticket_emoji} {key[0].capitalize()} ticket is still available for {target_str}!\n✅ Register here: {detail_url}"))
                     last_notifications[key] = datetime.now()
                 else:
                     logging.info("Cooldown active for %s ticket on %s (elapsed %.0f seconds).", key[0], target_str, elapsed)
@@ -170,7 +170,7 @@ def check_today_slots():
             send_telegram_message(msg)
             logging.info("Notification sent: %s", msg)
     else:
-        logging.info("No available tickets found for %s.", target_str)
+        logging.info("No available tickets are found for %s.", target_str)
         # send_telegram_message(f"❌ No available tickets found for {target_str}.")
     
     logging.info("Done checking slots for %s.", target_str)
